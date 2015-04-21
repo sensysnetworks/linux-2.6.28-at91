@@ -196,6 +196,27 @@ static struct at91_udc_data __initdata ek_udc_data = {
 };
 
 /*
+ * I2C
+ */
+static struct i2c_board_info __initdata apcc_i2c_devices[] = {
+	/*
+	 * The two power monitors in the Sensys system
+	 * live at the same I2C address. To overcome this limitation
+	 * in the ds2746 driver, we just have an attribute that
+	 * turns on the I2C clock of the one we want to talk to.
+	 */
+	{
+		I2C_BOARD_INFO("ds2746", 0x36), 
+		.type	= "ds2746",
+	},
+	{
+		I2C_BOARD_INFO("at24c1024", 0x54),
+		.type	= "at24c1024",
+		/*.platform_data = &sensys_i2c_eeprom;*/
+	},
+};
+
+/*
  * SPI devices.
  */
 
@@ -307,12 +328,42 @@ static struct mtd_partition spi_flash_partitions[] =
    {
       .name = "df_boot",
       .offset = 0,
-      .size = 0x42000,
+      .size = 0x4200,
    },
    {
-      .name = "df_kernel",
+      .name = "df_env0",
       .offset = MTDPART_OFS_NXTBLK,
-      .size = 0x210000,
+      .size = 0x2100
+   },
+   {
+      .name = "df_env1",
+      .offset = MTDPART_OFS_NXTBLK,
+      .size = 0x2100
+   },
+   {
+      .name = "df_uboot",
+      .offset = MTDPART_OFS_NXTBLK,
+      .size = 0x39c00
+   },
+   {
+      .name = "df_kernel0",
+      .offset = MTDPART_OFS_NXTBLK,
+      .size = 0x1bf900
+   },
+   {
+      .name = "df_kernel1",
+      .offset = MTDPART_OFS_NXTBLK,
+      .size = 0x1bf900
+   },
+   {
+      .name = "df_fpga0",
+      .offset = MTDPART_OFS_NXTBLK,
+      .size = 0x8400
+   },
+   {
+      .name = "df_fpga1",
+      .offset = MTDPART_OFS_NXTBLK,
+      .size = 0x8400
    },
    {
       .name = "df_aux",
@@ -415,7 +466,7 @@ static struct spi_board_info ek_spi_devices[] = {
 #else
 		.chip_select = 1,
 #endif 
-		.max_speed_hz = 33000000, /* 33 MHz in low-freq mode */
+		.max_speed_hz = 12000000, /* 12 MHz in low-freq mode */
 		.bus_num = 0,
 		.platform_data = &spi_df,
 	},
@@ -538,18 +589,25 @@ static struct platform_device som_ram = {
 };
 #endif
 
+#define CONFIG_APCC
+
 /*
  * MCI (SD/MMC)
  * wp_pin and vcc_pin are not connected
  */
 static struct at91_mmc_data __initdata ek_mmc_data = {
-#ifdef CONFIG_SOM_150ES_REV1 
+#ifdef CONFIG_APCC
+	.slot_b		= 0,
+#elif defined(CONFIG_SOM_150ES_REV1)
 	.slot_b		= 1,
 #else
 	.slot_b		= 0,
 #endif
 	.wire4		= 1,
-#if defined(CONFIG_SOM_150ES_REV3) || defined(CONFIG_RDAC_CARRIER)
+
+#ifdef CONFIG_APCC
+	.det_pin	= AT91_PIN_PB21,
+#elif defined(CONFIG_SOM_150ES_REV3) || defined(CONFIG_RDAC_CARRIER)
 	.det_pin	= AT91_PIN_PA29,
 #else
 	.det_pin	= AT91_PIN_PB21,
@@ -952,7 +1010,7 @@ static void __init ek_board_init(void)
 	/* SSC */
 	at91_add_device_ssc(AT91SAM9260_ID_SSC, ATMEL_SSC_TX | ATMEL_SSC_RD | ATMEL_SSC_RF);
 	/* I2C */
-	at91_add_device_i2c(NULL, 0);
+	at91_add_device_i2c(apcc_i2c_devices, ARRAY_SIZE(apcc_i2c_devices));
 	/* EMAC Core Extension */
 #ifdef CONFIG_KEYPAD
 	keypad_init(&keypad_data);

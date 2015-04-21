@@ -34,7 +34,7 @@
 #define RX_OFFSET		2
 
 #if defined(CONFIG_ARCH_AT91) && defined(CONFIG_MACB_TX_SRAM)
-	#if defined(CONFIG_ARCH_AT91SAM9260)
+	#if defined(CONFIG_ARCH_AT91SAM9260) || defined(CONFIG_ARCH_AT91SAM9G20)
 		#define TX_RING_SIZE       2
 	#elif defined(CONFIG_ARCH_AT91SAM9263)
 		#define TX_RING_SIZE       32
@@ -756,7 +756,7 @@ static int macb_alloc_consistent(struct macb *bp)
 		size, (unsigned long)bp->rx_ring_dma, bp->rx_ring);
 
 #if defined(CONFIG_ARCH_AT91) && defined(CONFIG_MACB_TX_SRAM)
-#if  defined(CONFIG_ARCH_AT91SAM9260)
+#if  defined(CONFIG_ARCH_AT91SAM9260) || defined(CONFIG_ARCH_AT91SAM9G20)
 	if (request_mem_region(AT91SAM9260_SRAM0_BASE, TX_DMA_SIZE, "macb")) {
 		bp->tx_ring_dma = AT91SAM9260_SRAM0_BASE;
 	} else {

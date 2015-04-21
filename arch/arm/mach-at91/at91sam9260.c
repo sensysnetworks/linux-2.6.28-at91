@@ -240,12 +240,19 @@ static struct clk pck0 = {
 	.type		= CLK_TYPE_PROGRAMMABLE,
 	.id		= 0,
 };
+
+#if defined(CONFIG_SOM_150ES)
+/*
+ * for the apcc, this is configured in u-boot and is the input clock
+ * to the fpga. we don't want the kernel to manage this clock.
+ */
 static struct clk pck1 = {
 	.name		= "pck1",
 	.pmc_mask	= AT91_PMC_PCK1,
 	.type		= CLK_TYPE_PROGRAMMABLE,
 	.id		= 1,
 };
+#endif
 
 static void __init at91sam9260_register_clocks(void)
 {
@@ -255,7 +262,9 @@ static void __init at91sam9260_register_clocks(void)
 		clk_register(periph_clocks[i]);
 
 	clk_register(&pck0);
+#if defined(CONFIG_SOM_150ES)
 	clk_register(&pck1);
+#endif
 }
 
 /* --------------------------------------------------------------------

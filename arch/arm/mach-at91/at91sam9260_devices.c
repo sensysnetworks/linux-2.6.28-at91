@@ -479,7 +479,11 @@ void __init at91_add_device_nand(struct atmel_nand_data *data) {}
 
 #if defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE)
 
-#ifdef CONFIG_RIMS_MCB
+#define CONFIG_APCC
+#ifdef CONFIG_APCC
+#define SDA_PIN AT91_PIN_PA23
+#define SCL_PIN AT91_PIN_PA24
+#elif defined(CONFIG_RIMS_MCB)
 #define SDA_PIN AT91_PIN_PB9
 #define SCL_PIN AT91_PIN_PB8
 #else

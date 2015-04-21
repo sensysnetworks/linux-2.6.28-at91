@@ -38,8 +38,10 @@
 #include <linux/dma-mapping.h>
 #include <linux/atmel_pdc.h>
 #include <linux/atmel_serial.h>
+#include <linux/uaccess.h>
 
 #include <asm/io.h>
+#include <asm/ioctls.h>
 
 #include <asm/mach/serial_at91.h>
 #include <mach/board.h>
@@ -93,6 +95,7 @@
 #define UART_GET_BRGR(port)	__raw_readl((port)->membase + ATMEL_US_BRGR)
 #define UART_PUT_BRGR(port,v)	__raw_writel(v, (port)->membase + ATMEL_US_BRGR)
 #define UART_PUT_RTOR(port,v)	__raw_writel(v, (port)->membase + ATMEL_US_RTOR)
+#define UART_PUT_FIDI(port,v)	__raw_writel(v, (port)->membase + ATMEL_US_FIDI)
 
  /* PDC registers */
 #define UART_PUT_PTCR(port,v)	__raw_writel(v, (port)->membase + ATMEL_PDC_PTCR)
@@ -153,6 +156,7 @@ struct atmel_uart_port {
 	unsigned int		irq_status_prev;
 
 	struct circ_buf		rx_ring;
+	unsigned long		iso7816;
 };
 
 static struct atmel_uart_port atmel_ports[ATMEL_MAX_UART];
@@ -614,6 +618,7 @@ static void atmel_tx_dma(struct uart_port *port)
 
 		UART_PUT_TPR(port, pdc->dma_addr + xmit->tail);
 		UART_PUT_TCR(port, count);
+
 		/* re-enable PDC transmit and interrupts */
 		UART_PUT_PTCR(port, ATMEL_PDC_TXTEN);
 		UART_PUT_IER(port, ATMEL_US_ENDTX | ATMEL_US_TXBUFE);
@@ -976,6 +981,18 @@ static void atmel_shutdown(struct uart_port *port)
 	free_irq(port->irq, port);
 
 	/*
+	 * close 7816 -
+	 */
+	if (atmel_port->iso7816) {
+		unsigned int mode = UART_GET_MR(port);
+
+		atmel_port->iso7816 = 0;
+
+		UART_PUT_MR(port, mode & ~(ATMEL_US_USMODE));
+		UART_PUT_FIDI(port, 0x174);
+	}
+
+	/*
 	 * If there is a specific "close" function (to unregister
 	 * control line interrupts)
 	 */
@@ -1040,6 +1057,7 @@ static void atmel_set_termios(struct uart_port *port, struct ktermios *termios,
 {
 	unsigned long flags;
 	unsigned int mode, imr, quot, baud;
+	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 
 	/* Get current mode register */
 	mode = UART_GET_MR(port) & ~(ATMEL_US_USCLKS | ATMEL_US_CHRL
@@ -1048,7 +1066,9 @@ static void atmel_set_termios(struct uart_port *port, struct ktermios *termios,
 	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk / 16);
 	quot = uart_get_divisor(port, baud);
 
-	if (quot > 65535) {	/* BRGR is 16-bit, so switch to slower clock */
+	if (atmel_port->iso7816 != 0) {
+		quot = (atmel_port->iso7816>>16)&0xff;
+	} else if (quot > 65535) { /* BRGR is 16-bit, so switch to slower clock */
 		quot /= 8;
 		mode |= ATMEL_US_USCLKS_MCK_DIV8;
 	}
@@ -1087,6 +1107,11 @@ static void atmel_set_termios(struct uart_port *port, struct ktermios *termios,
 			mode |= ATMEL_US_PAR_EVEN;
 	} else
 		mode |= ATMEL_US_PAR_NONE;
+
+	if (atmel_port->iso7816 != 0) {
+		mode &= ~(ATMEL_US_CHRL|ATMEL_US_NBSTOP|ATMEL_US_PAR);
+		mode |= (ATMEL_US_CHRL_8|ATMEL_US_NBSTOP_2|ATMEL_US_PAR_EVEN);
+	}
 
 	spin_lock_irqsave(&port->lock, flags);
 
@@ -1136,6 +1161,10 @@ static void atmel_set_termios(struct uart_port *port, struct ktermios *termios,
 	UART_PUT_BRGR(port, quot);
 	UART_PUT_CR(port, ATMEL_US_RSTSTA | ATMEL_US_RSTRX);
 	UART_PUT_CR(port, ATMEL_US_TXEN | ATMEL_US_RXEN);
+
+	if (atmel_port->iso7816 != 0) {
+		UART_PUT_FIDI(port, (atmel_port->iso7816&0xff));
+	}
 
 	/* restore interrupts */
 	UART_PUT_IER(port, imr);
@@ -1227,6 +1256,47 @@ static int atmel_verify_port(struct uart_port *port, struct serial_struct *ser)
 	return ret;
 }
 
+static void
+atmel_config_iso7816(struct uart_port *port)
+{
+	unsigned int mode;
+	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
+
+	if (atmel_port->iso7816 != 0) {
+		mode = UART_GET_MR(port);
+		mode &= ~(ATMEL_US_USMODE);
+		mode |= ATMEL_US_USMODE_ISO7816_T0;
+		mode &= ~(0xff000000);
+		mode |= 0x3000000;
+
+		UART_PUT_MR(port, mode);
+		UART_PUT_FIDI(port, (atmel_port->iso7816&0xff));
+		UART_PUT_BRGR(port, ((atmel_port->iso7816>>16)&0xff));
+	}
+}
+
+static int
+atmel_ioctl(struct uart_port *port, unsigned int cmd, unsigned long arg)
+{
+	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
+	int ret = -ENOIOCTLCMD;
+	
+	if (cmd == _IOW(0x54,0x91,unsigned long)) {
+		unsigned long iso7816;
+
+		if (copy_from_user(&iso7816, (void *)arg, sizeof(iso7816))) {
+			return -EFAULT;
+		}
+
+		atmel_port->iso7816 = iso7816;
+		atmel_config_iso7816(port);
+
+		ret = 0;
+	}
+
+	return ret;
+}
+
 static struct uart_ops atmel_pops = {
 	.tx_empty	= atmel_tx_empty,
 	.set_mctrl	= atmel_set_mctrl,
@@ -1246,6 +1316,7 @@ static struct uart_ops atmel_pops = {
 	.config_port	= atmel_config_port,
 	.verify_port	= atmel_verify_port,
 	.pm		= atmel_serial_pm,
+	.ioctl		= atmel_ioctl,
 };
 
 /*
