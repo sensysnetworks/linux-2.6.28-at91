@@ -1,0 +1,78 @@
+#
+# IO expansion configuration
+#
+
+menu "IO expansion"
+
+config ECOREEX
+        tristate "EMAC cores"
+        ---help---
+        Provides autodetection and support for PLD cores following the EMAC 
+        format, which uses a device key to communicate the expansion devices available to 
+        the kernel.       
+
+config ECOREEX_TGPIO
+		depends on ECOREEX
+        bool "iPac True GPI/O expansion R1.0"
+        ---help---
+        Provides autodetection and support for the iPac GPI/O expansion
+
+config ECOREEX_SGPWM
+		depends on ECOREEX
+        bool "iPac Shadow GPI/O & PWM expansion R1.0"
+        ---help---
+        Provides autodetection and support for the iPac Shadow GPI/O & PWM expansion
+
+config ECOREEX_GCMB
+		depends on ECOREEX
+        bool "GCMB expansion I/O"
+        ---help---
+        Provides autodetection and support for the GCMB expansion
+
+config ECOREEX_DENM
+		depends on ECOREEX
+        bool "DENM expansion I/O"
+        ---help---
+        Provides autodetection and support for the DENM expansion       
+
+config ECOREEX_HWMS
+        depends on ECOREEX
+        bool "Armstrong HWMS expansion I/O"
+        ---help---
+        Provides support for the Armstrong HWMS PLD
+
+config ECOREEX_RDAC
+        depends on ECOREEX
+        bool "RDAC Carrier expansion I/O"
+        ---help---
+        Provides support for the Blutick RDAC PLD
+
+config ECOREEX_SOM150
+        depends on ECOREEX
+        bool "EMAC SoM-150-ES expansion I/O"
+        ---help---
+        Provides support for the EMAC SoM-150-ES PLD
+
+config ECOREEX_KEY
+        depends on ECOREEX
+        bool "Define static version key"
+        ---help---
+        Disable auto-detection of the PLD core by defining the version key
+
+config ECOREEX_STATIC_KEY
+        depends on ECOREEX_KEY
+        hex "Version key"
+        default "0xC0"
+        ---help---
+        Set the static version key for the PLD core 
+
+config BOARDSPEC
+        tristate "board devices"
+        ---help---
+        Provides registration of devices provided by the mach. 
+
+endmenu
+
+
+
+

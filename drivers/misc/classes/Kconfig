@@ -1,0 +1,123 @@
+#
+# Input device configuration
+#
+
+menu "misc device classes"
+
+config GPIOCLASS
+        bool "GPIO class"
+        ---help---
+	  This is a set of classes for general purpose io ports.
+	  These devices typically contain a data register, 
+	  which holds the current state of the pins, and a ddr register, 
+	  which sets the pin to input or output, 0 or 1 respectively 
+
+config GPIOCLASS_SYSFS
+	depends on SYSFS && GPIOCLASS
+        bool "sysfs interface"
+        ---help---
+	  Enables a sysfs interface to the gpio class
+
+config GPIOCLASS_RTDM 
+	depends on XENO_SKIN_RTDM && GPIOCLASS
+        bool "rtdm interface"
+        ---help---
+	  Enables a Xenomai RTDM interface to the gpio class
+	  
+config GPIOCLASS_CHAR
+	depends on GPIOCLASS
+	bool "char interface"
+	---help---
+	  Enables a character device interface to the GPIO class.
+
+config PWMCLASS
+        bool "PWM class"
+        ---help---
+	  This is a set of classes for pulse width modulation.
+	  It allows the creation of pwm classes which can be configured
+	  through sysfs. PWM devices typically contain a 
+	  duty and frequency configuration register.
+	  
+config PWMCLASS_SYSFS
+	depends on SYSFS && PWMCLASS
+        bool "sysfs interface"
+        ---help---
+	  enables a sysfs interface to the pwm class
+
+config PWMCLASS_RTDM 
+	depends on XENO_SKIN_RTDM && PWMCLASS
+        bool "rtdm interface"
+        ---help---
+	  enables a Xenomai RTDM interface to the pwm class	  
+	  
+config SPICLASS
+        bool "SPI class"
+        ---help---
+	  This is a set of classes for SPI interfaces.
+	  It allows the creation of spi classes which can be configured
+	  through sysfs.SPI devices typically contain a 
+	  speed and flags register, a method for locking the bus, 
+	  and a bidirectional "xmit" method.
+
+config SPICLASS_SYSFS
+	depends on SYSFS && SPICLASS
+        bool "sysfs interface"
+        ---help---
+	  Enables a sysfs interface to the spi class
+
+config SPICLASS_CHAR
+	depends on SPICLASS
+	bool "char interface"
+	---help---
+	  Enables a character device interface to the spi class.
+
+config LSI2ESC
+        depends on SPICLASS && SPI_MASTER
+        bool "Linux SPI Interface to EMAC SPI Class interface"
+        ---help---
+          Enables a generic interface between the Linux SPI
+          driver and the EMAC SPI Class. Boards with an SPI controller
+          driver can use this to define generic access to a device
+          through the EMAC SPI class.
+
+config LSI2ESC_MCP3208
+	depends on LSI2ESC && GPIOCLASS
+	bool "MCP3208 ADC GPIO Interface"
+	---help---
+	  Enables an extension to the LSI2ESC to allow use of the SPI-based
+	  MCP3208 ADC through the GPIO Class. The LSI2ESC interface for this
+	  device must first be setup and registered in the board specific 
+	  initialization code followed by a call to the class creation 
+	  function in this driver.
+
+config LSI2ESC_MCP4922
+	depends on LSI2ESC && GPIOCLASS
+	bool "MCP4922 DAC GPIO Interface"
+	---help---
+	  Enables an extension to the LSI2ESC to allow use of the SPI-based
+	  MCP4922 DAC through the GPIO Class. The LSI2ESC interface for this
+	  device must first be setup and registered in the board specific 
+	  initialization code followed by a call to the class creation 
+	  function in this driver.
+
+config LSI2ESC_RDAC_AIO
+	depends on LSI2ESC && GPIOCLASS && RDAC_CARRIER
+	bool "RDAC Carrier AIO board GPIO interface"
+	---help---
+	  Enables an extension to the LSI2ESC to allow use of the SPI-based RDAC
+	  Carrier board AIO expansion through the GPIO class. The driver is
+	  instantiated through the LSI2ESC device created for this board. Creates
+	  a GPIO device for every register (or register set) on the AIO board.
+
+config LSI2ESC_RIMS_8051
+	depends on LSI2ESC && GPIOCLASS && RIMS_MCB
+	bool "RIMS MCB 8051 GPIO interface"
+	---help---
+	  Enables an extension to the LSI2ESC to allow use of the SPI-based RIMS
+	  SOM to 8051 communication through the GPIO class. The driver is
+	  instantiated through the LSI2ESC device created for this board. 
+
+endmenu
+
+
+
